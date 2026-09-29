@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 여행 MBTI 유형 검사</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+    body { background-color: #f4f6f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .card { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center; }
+    h1 { font-size: 22px; color: #333; margin-bottom: 20px; }
+    p { font-size: 15px; color: #666; line-height: 1.5; }
+    .btn { width: 100%; background: #4F46E5; color: white; border: none; padding: 14px; margin-top: 12px; border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.2s; }
+    .btn:hover { background: #4338CA; }
+    .progress-bar { width: 100%; background: #e5e7eb; height: 8px; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
+    .progress { height: 100%; background: #4F46E5; width: 0%; transition: 0.3s; }
+    .badge { display: inline-block; padding: 6px 12px; background: #EEF2FF; color: #4F46E5; font-weight: bold; border-radius: 20px; margin-bottom: 10px; }
+    .result-box { text-align: left; background: #F9FAFB; padding: 16px; border-radius: 10px; margin-top: 15px; font-size: 14px; line-height: 1.6; color: #374151; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <!-- 1. 시작 화면 -->
+  <div id="start-screen">
+    <span class="badge">✈️ 하동 여행 MBTI</span>
+    <h1>나에게 딱 맞는<br>하동 여행 스타일은?</h1>
+    <p>몇 가지 간단한 질문으로 당신만의 맞춤 여행 유형과 추천 코스를 확인해 보세요!</p>
+    <button class="btn" onclick="startTest()">테스트 시작하기</button>
+  </div>
+
+  <!-- 2. 질문 화면 -->
+  <div id="quiz-screen" class="hidden">
+    <div class="progress-bar"><div id="progress" class="progress"></div></div>
+    <h1 id="question-text">질문이 들어갈 자리입니다.</h1>
+    <button class="btn" onclick="selectOption(0)" id="opt-a">선택지 A</button>
+    <button class="btn" onclick="selectOption(1)" id="opt-b">선택지 B</button>
+  </div>
+
+  <!-- 3. 결과 화면 -->
+  <div id="result-screen" class="hidden">
+    <span class="badge" id="result-code">TYPE</span>
+    <h1 id="result-title">결과 유형 제목</h1>
+    <p id="result-tags" style="color:#6B7280; font-size:13px;"></p>
+    <div class="result-box">
+      <strong>📌 특징:</strong> <span id="result-desc"></span><br><br>
+      <strong>✨ 장점:</strong> <span id="result-benefit"></span>
+    </div>
+    <button class="btn" onclick="restartTest()" style="background:#6B7280;">다시 테스트하기</button>
+  </div>
+</div>
+
+<script>
+  // 1. 이미지의 16가지 여행 MBTI 데이터베이스
+  const resultData = {
+    "NATP": { title: "스릴 익스트림형", tags: "자연·활동·체험·사진", desc: "짚와이어, 스카이워크 등 다이내믹한 체험에 도전", benefit: "아드레날린 폭발하는 액티비티와 함께 역동적인 인증샷 확보" },
+    "NAFP": { title: "섬진강 레포츠형", tags: "자연·활동·먹거리·사진", desc: "카누, 카약, 레프팅 등 섬진강 수상 레저 중심", benefit: "섬진강을 온몸으로 즐기며 물놀이의 시원함과 재미를 극대화" },
+    "NAFS": { title: "자전거 러너형", tags: "자연·활동·먹거리·사람", desc: "섬진강 자전거길을 따라 달리는 코스 라이딩", benefit: "상쾌한 바람을 맞으며 건강과 지역 풍경을 동시에 즐김" },
+    "NATS": { title: "농촌 체험가형", tags: "자연·활동·체험·사람", desc: "대나무 숲 체험, 과수원 수확 체험 등 농촌 프로그램 참여", benefit: "손수 수확하는 이색적인 보람과 로컬 주민과의 정겨운 교류" },
+    "NRTS": { title: "차향 명상가형", tags: "자연·휴식·체험·사람", desc: "야생차밭 다도 체험, 정갈한 찻집 투어 위주의 휴식", benefit: "마음의 평온을 찾고 하동 차 문화의 깊이를 온전히 체감할 수 있음" },
+    "NRFS": { title: "숲속 산책가형", tags: "자연·휴식·먹거리·사람", desc: "지리산 둘레길, 최참판댁 산책로를 느긋하게 걷는 여행", benefit: "체력 부담 없이 울창한 숲과 자연 속에서 스트레스를 해소함" },
+    "CRTS": { title: "사찰·역사 탐구형", tags: "문화·휴식·체험·사람", desc: "쌍계사, 삼성궁 등 고즈넉한 역사 장소 탐방", benefit: "고즈넉한 인문·역사적 풍경 속에서 정서적 안정과 배움을 얻음" },
+    "NRFP": { title: "감성 카페 투어형 (강변 물멍)", tags: "자연·휴식·먹거리·사진", desc: "섬진강 뷰가 펼쳐지는 인스타 감성 카페 순례 및 물멍", benefit: "탁 트인 전망을 보며 감성 사진과 여유로운 티타임을 누림" },
+    "CAFS": { title: "로컬 특산품 미식가형", tags: "문화·활동·먹거리·사람", desc: "재첩국, 참게탕 등 하동 전통 향토 음식 탐방", benefit: "지역의 깊은 참맛을 느껴 식도락 만족도가 매우 높음" },
+    "CRFP": { title: "트렌디 디저트 탐험가형", tags: "문화·휴식·먹거리·사진", desc: "악양 감 모양 빵, 녹차 아이스크림 등 이색 디저트 투어", benefit: "트렌디하고 귀여운 비주얼의 먹거리로 미각과 시각을 동시에 만족" },
+    "CRFS": { title: "전통주·음료 탐구형", tags: "문화·휴식·먹거리·사람", desc: "하동 야생 차 음료 및 지역 전통주 시음", benefit: "하동만의 고유한 풍미를 음미하며 고즈넉하게 소통하는 즐거움" },
+    "CATP": { title: "포토스팟 수집가형", tags: "문화·활동·체험·사진", desc: "삼성궁, 매화마을, 동정호 등 유명 포토존 중심 이동", benefit: "하동의 핵심 대표 명소에서 최고의 인생샷을 확실히 건짐" },
+    "CRTP": { title: "문화·예술 감상형", tags: "문화·휴식·체험·사진", desc: "박경리문학관, 공방, 미술 전시를 조용히 관람", benefit: "감성적인 분위기 속에서 인문학적 영감과 잔잔한 사진 남김" },
+    "CAFP": { title: "로컬 굿즈 쇼퍼형", tags: "문화·활동·먹거리·사진", desc: "마스코트 캐릭터 굿즈, 팝업스토어, 소품샵 방문", benefit: "하동 방문을 기념할 소장 가치 높은 귀여운 아이템을 확보" },
+    "NRFP_Stay": { title: "감성 숙소 콕형", tags: "자연·휴식·먹거리·사진", desc: "지리산 뷰 한옥 스테이/글램핑장에서 숙박 위주 휴식", benefit: "동선 이동 최소화로 최상의 휴식과 프라이빗한 감성 사진 연출" }
+  };
+
+  // 2. 4가지 지표별 질문 (N/C, A/R, T/F, P/S)
+  const questions = [
+    {
+      q: "Q1. 여행지 장소를 선택할 때 나는?",
+      a: "자연 경관(숲, 강, 산) 중심으로 힐링하고 싶다", codeA: "N",
+      b: "문화 명소, 미술관, 역사적인 장소가 더 끌린다", codeB: "C"
+    },
+    {
+      q: "Q2. 여행 스타일을 고른다면?",
+      a: "익스트림 액티비티나 활동적인 체험을 원한다", codeA: "A",
+      b: "느긋하게 산책하거나 카페에서 휴식을 취하고 싶다", codeB: "R"
+    },
+    {
+      q: "Q3. 여행 중 더 중요하게 생각하는 요소는?",
+      a: "다도, 공방, 레저 등 직접적인 체험 프로그램", codeA: "T",
+      b: "유명 향토 음식, 디저트, 카페 등 미식 투어", codeB: "F"
+    },
+    {
+      q: "Q4. 여행 기록과 추억을 남기는 방식은?",
+      a: "인생샷이나 감성 사진을 찍어 SNS에 남긴다", codeA: "P",
+      b: "현지인들과 소통하거나 그 공간의 분위기 자체를 즐긴다", codeB: "S"
+    }
+  ];
+
+  let currentIdx = 0;
+  let userScores = { N:0, C:0, A:0, R:0, T:0, F:0, P:0, S:0 };
+
+  function startTest() {
+    document.getElementById("start-screen").classList.add("hidden");
+    document.getElementById("quiz-screen").classList.remove("hidden");
+    showQuestion();
+  }
+
+  function showQuestion() {
+    const q = questions[currentIdx];
+    document.getElementById("question-text").innerText = q.q;
+    document.getElementById("opt-a").innerText = q.a;
+    document.getElementById("opt-b").innerText = q.b;
+    document.getElementById("progress").style.width = ((currentIdx) / questions.length * 100) + "%";
+  }
+
+  function selectOption(idx) {
+    const q = questions[currentIdx];
+    if (idx === 0) userScores[q.codeA]++;
+    else userScores[q.codeB]++;
+
+    currentIdx++;
+    if (currentIdx < questions.length) {
+      showQuestion();
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult() {
+    document.getElementById("quiz-screen").classList.add("hidden");
+    document.getElementById("result-screen").classList.remove("hidden");
+
+    // 지표 조합 계산 (예: N + A + T + P = NATP)
+    let type = "";
+    type += userScores.N >= userScores.C ? "N" : "C";
+    type += userScores.A >= userScores.R ? "A" : "R";
+    type += userScores.T >= userScores.F ? "T" : "F";
+    type += userScores.P >= userScores.S ? "P" : "S";
+
+    // 데이터 매핑 (예외 처리 포함)
+    let res = resultData[type] || resultData["NATP"];
+
+    document.getElementById("result-code").innerText = type;
+    document.getElementById("result-title").innerText = res.title;
+    document.getElementById("result-tags").innerText = "#" + res.tags.replaceAll("·", " #");
+    document.getElementById("result-desc").innerText = res.desc;
+    document.getElementById("result-benefit").innerText = res.benefit;
+  }
+
+  function restartTest() {
+    currentIdx = 0;
+    userScores = { N:0, C:0, A:0, R:0, T:0, F:0, P:0, S:0 };
+    document.getElementById("result-screen").classList.add("hidden");
+    document.getElementById("start-screen").classList.remove("hidden");
+  }
+</script>
+</body>
+</html>
